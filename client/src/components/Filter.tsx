@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { FaSearch } from "react-icons/fa";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -12,16 +12,35 @@ type Props = {
     minFare: number;
     maxFare: number;
   }) => void;
+  initialFilters: {
+    service: string;
+    payment: string;
+    minDistance: number;
+    maxDistance: number;
+    minFare: number;
+    maxFare: number;
+  };
 };
 
-const Filter: React.FC<Props> = ({ onFilterSubmit }) => {
-  const [service, setService] = useState("");
-  const [payment, setPayment] = useState("");
-  const [minDistance, setMinDistance] = useState<string>("0");
-  const [maxDistance, setMaxDistance] = useState<string>("100");
-  const [minFare, setMinFare] = useState<string>("0");
-  const [maxFare, setMaxFare] = useState<string>("1000");
+const Filter: React.FC<Props> = ({ onFilterSubmit, initialFilters }) => {
+  const [service, setService] = useState(initialFilters.service);
+  const [payment, setPayment] = useState(initialFilters.payment);
+  const [minDistance, setMinDistance] = useState<string>(initialFilters.minDistance.toString());
+  const [maxDistance, setMaxDistance] = useState<string>(initialFilters.maxDistance.toString());
+  const [minFare, setMinFare] = useState<string>(initialFilters.minFare.toString());
+  const [maxFare, setMaxFare] = useState<string>(initialFilters.maxFare.toString());
   const [loading, setLoading] = useState(false);
+
+ 
+  useEffect(() => {
+    setService(initialFilters.service);
+    setPayment(initialFilters.payment);
+    setMinDistance(initialFilters.minDistance.toString());
+    setMaxDistance(initialFilters.maxDistance.toString());
+    setMinFare(initialFilters.minFare.toString());
+    setMaxFare(initialFilters.maxFare.toString());
+  }, [initialFilters]);
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,14 +59,18 @@ const Filter: React.FC<Props> = ({ onFilterSubmit }) => {
 
     setLoading(true);
 
-    onFilterSubmit({
+   
+    const filters = {
       service: serviceCode,
       payment: paymentCode,
-      minDistance: parseFloat(minDistance) || 0,
-      maxDistance: parseFloat(maxDistance) || 0,
-      minFare: parseFloat(minFare) || 0,
-      maxFare: parseFloat(maxFare) || 0,
-    });
+      minDistance: parseFloat(minDistance),
+      maxDistance: parseFloat(maxDistance),
+      minFare: parseFloat(minFare),
+      maxFare: parseFloat(maxFare),
+    };
+
+  
+    onFilterSubmit(filters);
 
     setTimeout(() => {
       setLoading(false);
@@ -136,26 +159,28 @@ const Filter: React.FC<Props> = ({ onFilterSubmit }) => {
           </div>
         </div>
       </div>
+      <div className="w-full justify-end">
+        <button
+          type="submit"
+          className={`bg-yellow-300 hover:bg-yellow-400 w-full transition py-1 font-semibold shadow-xl px-4 rounded-lg flex justify-center items-center gap-2 ${
+            loading ? "cursor-not-allowed" : ""
+          }`}
+          disabled={loading}
+        >
+          {loading ? (
+            <>
+              <div className="animate-spin border-2 border-white rounded-full w-4 h-4 border-t-transparent mr-2"></div>
+              <span>Searching...</span>
+            </>
+          ) : (
+            <>
+              <FaSearch />
+              <span>Search</span>
+            </>
+          )}
+        </button>
+      </div>
 
-      <button
-        type="submit"
-        className={`bg-yellow-300 hover:bg-yellow-400 w-full transition py-1 font-semibold shadow-xl px-4 rounded-lg flex justify-center items-center gap-2 ${
-          loading ? "cursor-not-allowed" : ""
-        }`}
-        disabled={loading}
-      >
-        {loading ? (
-          <>
-            <div className="animate-spin border-2 border-white rounded-full w-4 h-4 border-t-transparent mr-2"></div>
-            <span>Searching...</span>
-          </>
-        ) : (
-          <>
-            <FaSearch />
-            <span>Search</span>
-          </>
-        )}
-      </button>
       <ToastContainer />
     </form>
   );

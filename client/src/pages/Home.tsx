@@ -18,6 +18,7 @@ import "react-toastify/dist/ReactToastify.css";
 import { Trip } from "../types";
 import Filter from "../components/Filter";
 import FilterMobile from "../components/FilterMobile";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const Home: React.FC = () => {
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -26,6 +27,8 @@ const Home: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [totalTrips, setTotalTrips] = useState<number>(0);
   const tripsPerPage = 10;
+  const navigate = useNavigate();
+  const location = useLocation();
 
   // Loading state
   const [loading, setLoading] = useState<boolean>(true);
@@ -104,22 +107,90 @@ const Home: React.FC = () => {
       maxFare,
     });
   }, [currentPage, service, payment, minDistance, maxDistance, minFare, maxFare]);
-
+  
   const totalPages = Math.ceil(totalTrips / tripsPerPage);
 
-  const handleTripClick = (trip: Trip) => {
-    setSelectedTripId(trip.id);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+  useEffect(() => {
+    const queryParams = new URLSearchParams(location.search);
+    const filters = {
+      service: queryParams.get("service") || "",
+      payment: queryParams.get("payment") || "",
+      minDistance: parseFloat(queryParams.get("minDistance") || "0"),
+      maxDistance: parseFloat(queryParams.get("maxDistance") || "100"),
+      minFare: parseFloat(queryParams.get("minFare") || "0"),
+      maxFare: parseFloat(queryParams.get("maxFare") || "1000"),
+      page: parseInt(queryParams.get("page") || "1"),
+    };
 
-  const handleFilterSubmit = (filters: any) => {
+   // Check if the page exceeds total pages
+   if (filters.page > totalPages && totalPages > 0) {
+    // Redirect to the last page
+    const newPage = totalPages > 0 ? totalPages : 1; 
+    const updatedQueryParams = new URLSearchParams({
+      service: filters.service,
+      payment: filters.payment,
+      minDistance: filters.minDistance.toString(), 
+      maxDistance: filters.maxDistance.toString(), 
+      minFare: filters.minFare.toString(),
+      maxFare: filters.maxFare.toString(), 
+      page: newPage.toString(),
+    });
+    navigate(`?${updatedQueryParams.toString()}`);
+    return; 
+  }
+
+  
     setService(filters.service);
     setPayment(filters.payment);
     setMinDistance(filters.minDistance);
     setMaxDistance(filters.maxDistance);
     setMinFare(filters.minFare);
     setMaxFare(filters.maxFare);
-    setCurrentPage(1);
+    setCurrentPage(filters.page);
+  }, [location.search, totalPages, currentPage]);
+
+  const handleFilterSubmit = (filters: {
+    service: string;
+    payment: string;
+    minDistance: number;
+    maxDistance: number;
+    minFare: number;
+    maxFare: number;
+  }) => {
+    setService(filters.service);
+    setPayment(filters.payment);
+    setMinDistance(filters.minDistance);
+    setMaxDistance(filters.maxDistance);
+    setMinFare(filters.minFare);
+    setMaxFare(filters.maxFare);
+    setCurrentPage(1); 
+    const queryParams = new URLSearchParams();
+    queryParams.set("service", filters.service);
+    queryParams.set("payment", filters.payment);
+    queryParams.set("minDistance", filters.minDistance.toString());
+    queryParams.set("maxDistance", filters.maxDistance.toString());
+    queryParams.set("minFare", filters.minFare.toString());
+    queryParams.set("maxFare", filters.maxFare.toString());
+    queryParams.set("page", "1");
+    navigate(`?${queryParams.toString()}`);
+  };
+
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 1 || newPage > totalPages) return; // Prevent invalid page numbers
+
+    setCurrentPage(newPage); // Update the current page
+
+    // Construct new URL with updated page number
+    const queryParams = new URLSearchParams(location.search);
+    queryParams.set("page", newPage.toString());
+    // Include any additional filters you want to maintain in the URL here
+    navigate(`?${queryParams.toString()}`);
+  };
+
+  const handleTripClick = (trip: Trip) => {
+    setSelectedTripId(trip.id);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const toggleJumpToPage = () => {
@@ -131,17 +202,17 @@ const Home: React.FC = () => {
 
   const handleJumpToPage = (page: number) => {
     if (page > 0 && page <= totalPages) {
-      setTimeout(() => {
-        setCurrentPage(page);
-        setShowJumpToPageModal(!showJumpToPageModal);
-        setIsClosing(false);
-      }, 300);
+      setCurrentPage(page);
+      const queryParams = new URLSearchParams(location.search);
+      queryParams.set("page", page.toString());
+      navigate(`?${queryParams.toString()}`);
+      setShowJumpToPageModal(!showJumpToPageModal);
+      setIsClosing(false);
     } else {
       toast.warning(`Please input between 1 and ${totalPages}`, {
         position: "bottom-right",
         autoClose: 3000,
       });
-      return;
     }
   };
 
@@ -155,7 +226,17 @@ const Home: React.FC = () => {
           <Navbar />
           {error && <p className="text-red-500">{error}</p>}
           <div className="flex justify-center">
-            <Filter onFilterSubmit={handleFilterSubmit} />
+            <Filter
+              onFilterSubmit={handleFilterSubmit}
+              initialFilters={{
+                service,
+                payment,
+                minDistance,
+                maxDistance,
+                minFare,
+                maxFare,
+              }}
+            />
           </div>
           <div className="flex justify-center h-[66vh] bg-[#F9F7E4] rounded-lg  overflow-y-auto custom-scrollbar hide-scrollbar ">
             <div className="flex flex-col w-full max-h-[50vh] p-2">
@@ -190,7 +271,7 @@ const Home: React.FC = () => {
                   </div>
                 ))
               ) : trips.length === 0 ? (
-                <p className="text-[#F9F7E4] text-lg text-center">No Data</p>
+                <p className="text-[black] text-lg text-center">No Data</p>
               ) : (
                 trips.map((trip) => (
                   <div
@@ -245,7 +326,7 @@ const Home: React.FC = () => {
             <button
               className="p-2 text-[#122D4F] bg-[#F9F7E4] rounded-full hover:bg-gray-400 transition"
               disabled={currentPage === 1 || totalTrips === 0}
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              onClick={() => handlePageChange(currentPage - 1)} // Use handlePageChange here
             >
               <GrFormPrevious />
             </button>
@@ -255,7 +336,7 @@ const Home: React.FC = () => {
             <button
               className="p-2 text-[#122D4F] bg-[#F9F7E4] rounded-full hover:bg-gray-400 transition"
               disabled={currentPage === totalPages || totalTrips === 0}
-              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+              onClick={() => handlePageChange(currentPage + 1)} // Use handlePageChange here
             >
               <GrFormNext />
             </button>
@@ -322,7 +403,15 @@ const Home: React.FC = () => {
                 ✕
               </button>
               <h2 className="text-xl font-semibold mb-4">Filter Trips</h2>
-              {isFilterOpen && <FilterMobile onFilterSubmit={handleFilterSubmit} onClose={toggleFilterModal} />}
+              {isFilterOpen && <FilterMobile onFilterSubmit={handleFilterSubmit} initialFilters={{
+                service,
+                payment,
+                minDistance,
+                maxDistance,
+                minFare,
+                maxFare,
+              }}
+              onClose={toggleFilterModal} />}
             </div>
           </div>
         )}
@@ -351,7 +440,7 @@ const Home: React.FC = () => {
                 </div>
               ))
             ) : trips.length === 0 ? (
-              <p className="text-[#F9F7E4] text-lg text-center">No Data</p>
+              <p className="text-[black] text-lg text-center">No Data</p>
             ) : (
               trips.map((trip) => (
                 <div
@@ -404,7 +493,7 @@ const Home: React.FC = () => {
           <button
             className="p-2 text-[#122D4F] bg-[#F9F7E4] rounded-full hover:bg-gray-400 transition"
             disabled={currentPage === 1 || totalTrips === 0}
-            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+            onClick={() => handlePageChange(currentPage - 1)}
           >
             <GrFormPrevious />
           </button>
@@ -414,7 +503,7 @@ const Home: React.FC = () => {
           <button
             className="p-2 text-[#122D4F] bg-[#F9F7E4] rounded-full hover:bg-gray-400 transition"
             disabled={currentPage === totalPages || totalTrips === 0}
-            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+            onClick={() => handlePageChange(currentPage + 1)}
           >
             <GrFormNext />
           </button>
