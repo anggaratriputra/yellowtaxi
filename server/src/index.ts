@@ -10,11 +10,7 @@ import tripsRoute from './routes/trips';
 
 
 
-app.use(cors({
-  origin: 'https://yellowtaxi.anggaratriputra.my.id', 
-  methods: ['GET', 'POST', 'PUT', 'DELETE'], 
-  credentials: true 
-}));
+app.use(cors());
 
 app.use(express.json());
 
